@@ -25,6 +25,15 @@ public class Chat {
     @Column(name = "is_read")
     private Boolean isRead = false;
     
+    @Column(name = "is_archived")
+    private Boolean isArchived = false;
+    
+    @Column(name = "is_deleted")
+    private Boolean isDeleted = false;
+    
+    @Column(name = "archived_by_user_id")
+    private Long archivedByUserId;
+    
     @ManyToOne
     @JoinColumn(name = "related_request_id")
     private BloodRequest relatedRequest;
@@ -53,4 +62,13 @@ public class Chat {
     
     public LocalDateTime getCreatedAt() { return createdAt; }
     public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }
+    
+    public Boolean getIsArchived() { return isArchived; }
+    public void setIsArchived(Boolean isArchived) { this.isArchived = isArchived; }
+    
+    public Boolean getIsDeleted() { return isDeleted; }
+    public void setIsDeleted(Boolean isDeleted) { this.isDeleted = isDeleted; }
+    
+    public Long getArchivedByUserId() { return archivedByUserId; }
+    public void setArchivedByUserId(Long archivedByUserId) { this.archivedByUserId = archivedByUserId; }
 }

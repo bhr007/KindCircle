@@ -10,4 +10,5 @@ import java.util.Optional;
 public interface CommentVoteRepository extends JpaRepository<CommentVote, Long> {
     Optional<CommentVote> findByUserIdAndCommentId(Long userId, Long commentId);
     long countByCommentIdAndVoteType(Long commentId, CommentVote.VoteType voteType);
+    void deleteByCommentId(Long commentId);
 }

@@ -33,8 +33,7 @@ public class EmailService {
      */
     public void sendVerificationEmail(String toEmail, String token, String userName) {
         if (!isEmailConfigured()) {
-            System.out.println("Email not configured. Skipping verification email to: " + toEmail);
-            System.out.println("Verification token (for testing): " + token);
+            // Email not configured - silently skip (token will be in response if needed)
             return; // Don't throw error if email not configured
         }
         
@@ -52,12 +51,9 @@ public class EmailService {
             helper.setText(htmlContent, true);
             
             mailSender.send(message);
-            System.out.println("Verification email sent to: " + toEmail);
         } catch (MessagingException e) {
-            System.err.println("Failed to send verification email: " + e.getMessage());
-            e.printStackTrace();
             // Log but don't fail registration if email fails
-            System.out.println("Verification token (for manual testing): " + token);
+            // Error is handled silently to not interrupt user registration
         }
     }
     
@@ -66,8 +62,6 @@ public class EmailService {
      */
     public void sendPasswordResetEmail(String toEmail, String token, String userName) {
         if (!isEmailConfigured()) {
-            System.out.println("Email not configured. Skipping password reset email to: " + toEmail);
-            System.out.println("Reset token (for testing): " + token);
             throw new RuntimeException("Email service is not configured. Please configure email settings.");
         }
         
@@ -85,10 +79,7 @@ public class EmailService {
             helper.setText(htmlContent, true);
             
             mailSender.send(message);
-            System.out.println("Password reset email sent to: " + toEmail);
         } catch (MessagingException e) {
-            System.err.println("Failed to send password reset email: " + e.getMessage());
-            e.printStackTrace();
             throw new RuntimeException("Failed to send password reset email", e);
         }
     }

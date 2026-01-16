@@ -74,7 +74,6 @@ public class AuthController {
             String verificationToken = emailVerificationService.generateVerificationToken(savedUser);
             emailService.sendVerificationEmail(savedUser.getEmail(), verificationToken, savedUser.getFullName());
         } catch (Exception e) {
-            System.err.println("Failed to send verification email: " + e.getMessage());
             // Continue with registration even if email fails
         }
         

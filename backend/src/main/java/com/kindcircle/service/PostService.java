@@ -151,8 +151,6 @@ public class PostService {
                         proof.setFileSize(file.getSize());
                         mediaProofRepository.save(proof);
                     } catch (Exception e) {
-                        System.err.println("Error saving media file: " + e.getMessage());
-                        e.printStackTrace();
                         // Continue with other files even if one fails
                     }
                 }
@@ -184,11 +182,13 @@ public class PostService {
         Vote.VoteType type = Vote.VoteType.valueOf(voteType);
         final boolean[] isNewVote = {false};
         final boolean[] voteTypeChanged = {false};
+        final Vote.VoteType[] previousVoteType = {null};
         
         // Check if user already voted
         voteRepository.findByUserIdAndPostId(currentUser.getId(), postId)
             .ifPresentOrElse(
                 existingVote -> {
+                    previousVoteType[0] = existingVote.getVoteType();
                     if (existingVote.getVoteType() == type) {
                         // Remove vote if same type clicked again
                         voteRepository.delete(existingVote);
@@ -209,6 +209,42 @@ public class PostService {
                     isNewVote[0] = true;
                 }
             );
+        
+        // Update post owner's upvote/downvote counts
+        if (!post.getUser().getId().equals(currentUser.getId())) {
+            User postOwner = post.getUser();
+            
+            if (isNewVote[0]) {
+                // New vote added
+                if (type == Vote.VoteType.UPVOTE) {
+                    postOwner.setUpvotesReceived(postOwner.getUpvotesReceived() + 1);
+                } else {
+                    postOwner.setDownvotesReceived(postOwner.getDownvotesReceived() + 1);
+                }
+            } else if (voteTypeChanged[0] && previousVoteType[0] != null) {
+                // Vote type changed - adjust counts
+                if (previousVoteType[0] == Vote.VoteType.UPVOTE) {
+                    postOwner.setUpvotesReceived(Math.max(0, postOwner.getUpvotesReceived() - 1));
+                } else {
+                    postOwner.setDownvotesReceived(Math.max(0, postOwner.getDownvotesReceived() - 1));
+                }
+                
+                if (type == Vote.VoteType.UPVOTE) {
+                    postOwner.setUpvotesReceived(postOwner.getUpvotesReceived() + 1);
+                } else {
+                    postOwner.setDownvotesReceived(postOwner.getDownvotesReceived() + 1);
+                }
+            } else if (!isNewVote[0] && !voteTypeChanged[0]) {
+                // Vote was removed
+                if (previousVoteType[0] == Vote.VoteType.UPVOTE) {
+                    postOwner.setUpvotesReceived(Math.max(0, postOwner.getUpvotesReceived() - 1));
+                } else if (previousVoteType[0] == Vote.VoteType.DOWNVOTE) {
+                    postOwner.setDownvotesReceived(Math.max(0, postOwner.getDownvotesReceived() - 1));
+                }
+            }
+            
+            userService.save(postOwner);
+        }
         
         // Create notification for new votes or when vote type changes (if user is voting on someone else's post)
         if (!post.getUser().getId().equals(currentUser.getId()) && (isNewVote[0] || voteTypeChanged[0])) {

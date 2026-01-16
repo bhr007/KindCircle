@@ -12,17 +12,26 @@ const Layout = () => {
   const [notifications, setNotifications] = useState([])
   const [unreadCount, setUnreadCount] = useState(0)
   const [inboxUnreadCount, setInboxUnreadCount] = useState(0)
+  const [newPostsCount, setNewPostsCount] = useState(0)
+  const [newRequestsCount, setNewRequestsCount] = useState(0)
+
+  const NEWS_FEED_LAST_VIEW_KEY = 'newsFeedLastView'
+  const EMERGENCY_FEED_LAST_VIEW_KEY = 'emergencyFeedLastView'
   
   useEffect(() => {
     if (user) {
       fetchNotifications()
       fetchUnreadCount()
       fetchInboxUnreadCount()
+      fetchNewPostsCount()
+      fetchNewRequestsCount()
       // Poll for new notifications every 30 seconds
       const interval = setInterval(() => {
         fetchNotifications()
         fetchUnreadCount()
         fetchInboxUnreadCount()
+        fetchNewPostsCount()
+        fetchNewRequestsCount()
       }, 30000)
       return () => clearInterval(interval)
     }
@@ -37,6 +46,70 @@ const Layout = () => {
     } catch (error) {
       console.error('Failed to fetch inbox unread count', error)
     }
+  }
+
+  const fetchNewPostsCount = async () => {
+    try {
+      const response = await api.get('/feed?sort=recent')
+      const posts = response.data || []
+      const lastView = localStorage.getItem(NEWS_FEED_LAST_VIEW_KEY)
+      
+      if (!lastView) {
+        localStorage.setItem(NEWS_FEED_LAST_VIEW_KEY, new Date().toISOString())
+        setNewPostsCount(0)
+        return
+      }
+
+      const lastViewDate = new Date(lastView)
+      const newPosts = posts.filter(post => {
+        const postDate = new Date(post.createdAt || post.created_at)
+        return postDate > lastViewDate
+      })
+
+      setNewPostsCount(newPosts.length)
+    } catch (error) {
+      console.error('Failed to fetch new posts count', error)
+    }
+  }
+
+  const fetchNewRequestsCount = async () => {
+    try {
+      const response = await api.get('/emergency')
+      const requests = response.data || []
+      const lastView = localStorage.getItem(EMERGENCY_FEED_LAST_VIEW_KEY)
+      
+      if (!lastView) {
+        localStorage.setItem(EMERGENCY_FEED_LAST_VIEW_KEY, new Date().toISOString())
+        setNewRequestsCount(0)
+        return
+      }
+
+      const lastViewDate = new Date(lastView)
+      // Filter: only count requests where current user is NOT the requester (only for potential donors)
+      const newRequests = requests.filter(request => {
+        const requestDate = new Date(request.createdAt || request.created_at)
+        const isNewRequest = requestDate > lastViewDate
+        // Exclude requests where current user is the requester
+        const isNotRequester = request.requester?.id !== user?.id && 
+                               request.requester_id !== user?.id &&
+                               request.requester?.id?.toString() !== user?.id?.toString()
+        return isNewRequest && isNotRequester
+      })
+
+      setNewRequestsCount(newRequests.length)
+    } catch (error) {
+      console.error('Failed to fetch new requests count', error)
+    }
+  }
+
+  const handleNewsFeedClick = () => {
+    localStorage.setItem(NEWS_FEED_LAST_VIEW_KEY, new Date().toISOString())
+    setNewPostsCount(0)
+  }
+
+  const handleEmergencyClick = () => {
+    localStorage.setItem(EMERGENCY_FEED_LAST_VIEW_KEY, new Date().toISOString())
+    setNewRequestsCount(0)
   }
 
   const fetchNotifications = async () => {
@@ -121,8 +194,18 @@ const Layout = () => {
           </Link>
           
           <div className="nav-links">
-            <Link to="/">News Feed</Link>
-            <Link to="/emergency">Emergency</Link>
+            <Link to="/" className="nav-link-with-badge" onClick={handleNewsFeedClick}>
+              News Feed
+              {newPostsCount > 0 && (
+                <span className="notification-badge">{newPostsCount > 99 ? '99+' : newPostsCount}</span>
+              )}
+            </Link>
+            <Link to="/emergency" className="nav-link-with-badge" onClick={handleEmergencyClick}>
+              Emergency
+              {newRequestsCount > 0 && (
+                <span className="notification-badge">{newRequestsCount > 99 ? '99+' : newRequestsCount}</span>
+              )}
+            </Link>
             <Link to="/awareness">Awareness</Link>
           </div>
 

@@ -43,6 +43,12 @@
   color: #dc3545;
 }
 
+.nav-link-with-badge {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+}
+
 .nav-user {
   display: flex;
   align-items: center;

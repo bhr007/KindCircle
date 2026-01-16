@@ -56,9 +56,11 @@ const Profile = () => {
 
   const upvotes = profile.upvotesReceived || profile.upvotes_received || 0
   const downvotes = profile.downvotesReceived || profile.downvotes_received || 0
-  const trustRatio = upvotes > 0
-    ? ((upvotes / (upvotes + downvotes)) * 100).toFixed(1)
-    : 0
+  const responseCount = profile.responseCount || 0
+  const successfulDonations = profile.successfulDonations || 0
+  const trustRatio = profile.trustRatio || (upvotes > 0
+    ? parseFloat(((upvotes / (upvotes + downvotes)) * 100).toFixed(1))
+    : 0)
 
   const isOwnProfile = currentUser && profile.id === currentUser.id
 
@@ -122,9 +124,11 @@ const Profile = () => {
 
         <div className="detail-card">
           <h3>Trust Metrics</h3>
-          <p><strong>Upvotes:</strong> {profile.upvotesReceived || profile.upvotes_received || 0}</p>
-          <p><strong>Downvotes:</strong> {profile.downvotesReceived || profile.downvotes_received || 0}</p>
-          <p><strong>Trust Ratio:</strong> {trustRatio}%</p>
+          <p><strong>Upvotes:</strong> {upvotes}</p>
+          <p><strong>Downvotes:</strong> {downvotes}</p>
+          <p><strong>Trust Ratio:</strong> {typeof trustRatio === 'number' ? trustRatio.toFixed(1) : trustRatio}%</p>
+          <p><strong>Emergency Responses:</strong> {responseCount}</p>
+          <p><strong>Successful Donations:</strong> {successfulDonations}</p>
         </div>
       </div>
 

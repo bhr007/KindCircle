@@ -165,4 +165,45 @@ public class EmergencyController {
         bloodRequestService.markMessagesAsRead(requestId, user.getId());
         return ResponseEntity.ok(Map.of("message", "Messages marked as read"));
     }
+    
+    @GetMapping("/{requestId}/responders")
+    public ResponseEntity<List<com.kindcircle.dto.ConversationResponse.UserInfo>> getResponders(@PathVariable Long requestId) {
+        List<com.kindcircle.model.User> responders = bloodRequestService.getRespondersForRequest(requestId);
+        List<com.kindcircle.dto.ConversationResponse.UserInfo> responderInfos = responders.stream()
+            .map(com.kindcircle.dto.ConversationResponse.UserInfo::fromUser)
+            .collect(Collectors.toList());
+        return ResponseEntity.ok(responderInfos);
+    }
+    
+    @DeleteMapping("/{requestId}")
+    public ResponseEntity<Map<String, String>> deleteRequest(@PathVariable Long requestId) {
+        bloodRequestService.deleteRequest(requestId);
+        return ResponseEntity.ok(Map.of("message", "Blood request deleted successfully"));
+    }
+    
+    @DeleteMapping("/inbox/messages/{messageId}")
+    public ResponseEntity<Map<String, String>> deleteChatMessage(@PathVariable Long messageId) {
+        bloodRequestService.deleteChatMessage(messageId);
+        return ResponseEntity.ok(Map.of("message", "Message deleted successfully"));
+    }
+    
+    @PostMapping("/inbox/{requestId}/archive")
+    public ResponseEntity<Map<String, String>> archiveConversation(@PathVariable Long requestId) {
+        bloodRequestService.archiveConversation(requestId);
+        return ResponseEntity.ok(Map.of("message", "Conversation archived successfully"));
+    }
+    
+    @DeleteMapping("/inbox/{requestId}/conversation")
+    public ResponseEntity<Map<String, String>> deleteConversation(@PathVariable Long requestId) {
+        bloodRequestService.deleteConversation(requestId);
+        return ResponseEntity.ok(Map.of("message", "Conversation deleted successfully"));
+    }
+    
+    @GetMapping("/inbox/archived")
+    public ResponseEntity<List<com.kindcircle.dto.ConversationResponse>> getArchivedConversations() {
+        org.springframework.security.core.Authentication auth = 
+            org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication();
+        com.kindcircle.model.User user = userService.findByUsername(auth.getName());
+        return ResponseEntity.ok(bloodRequestService.getArchivedConversations(user.getId()));
+    }
 }

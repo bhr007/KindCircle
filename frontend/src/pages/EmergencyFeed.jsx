@@ -15,6 +15,7 @@ const EmergencyFeed = () => {
   const [newMessage, setNewMessage] = useState('')
   const [showLocation, setShowLocation] = useState(false)
   const [locationData, setLocationData] = useState(null)
+  const [deletingRequestId, setDeletingRequestId] = useState(null)
 
   // Form state
   const [formData, setFormData] = useState({
@@ -59,7 +60,7 @@ const EmergencyFeed = () => {
       console.log('Fetched emergency requests response:', response)
       console.log('Fetched emergency requests data:', response.data)
       if (response.data && Array.isArray(response.data)) {
-        setRequests(response.data)
+      setRequests(response.data)
       } else {
         console.warn('Unexpected response format:', response.data)
         setRequests([])
@@ -170,6 +171,23 @@ const EmergencyFeed = () => {
       }
     } catch (error) {
       toast.error(error.response?.data?.message || 'Failed to confirm donation')
+    }
+  }
+
+  const handleDeleteRequest = async (requestId) => {
+    if (!window.confirm('Are you sure you want to delete this blood request? This action cannot be undone.')) {
+      return
+    }
+    
+    setDeletingRequestId(requestId)
+    try {
+      await api.delete(`/emergency/${requestId}`)
+      toast.success('Blood request deleted successfully')
+      fetchRequests()
+    } catch (error) {
+      toast.error(error.response?.data?.message || 'Failed to delete request')
+    } finally {
+      setDeletingRequestId(null)
     }
   }
 
@@ -424,10 +442,19 @@ const EmergencyFeed = () => {
               </div>
 
               <div className="request-footer">
-                {request.status === 'OPEN' && request.requester.id !== user.id && (
+                {request.status === 'OPEN' && request.requester.id === user.id && (
                   <button
-                    className="btn btn-primary"
-                    onClick={() => handleRespond(request.id)}
+                    onClick={() => handleDeleteRequest(request.id)}
+                    disabled={deletingRequestId === request.id}
+                    className="btn btn-danger"
+                  >
+                    {deletingRequestId === request.id ? 'Deleting...' : '🗑️ Delete Request'}
+                  </button>
+                )}
+                {request.status === 'OPEN' && request.requester.id !== user.id && (
+                <button
+                  className="btn btn-primary"
+                  onClick={() => handleRespond(request.id)}
                   >
                     Respond
                   </button>
@@ -471,7 +498,7 @@ const EmergencyFeed = () => {
                             toast.error('Failed to confirm donation')
                           }
                         }}
-                      >
+                >
                         Confirm Donation
                       </button>
                     )}
@@ -503,7 +530,7 @@ const EmergencyFeed = () => {
                         }}
                       >
                         Complete Donation
-                      </button>
+                </button>
                     )}
                   </>
                 )}

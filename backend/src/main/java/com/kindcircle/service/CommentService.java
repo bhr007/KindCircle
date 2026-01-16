@@ -232,8 +232,23 @@ public class CommentService {
             throw new RuntimeException("You don't have permission to delete this comment");
         }
         
+        // Delete all votes associated with this comment and its replies
+        deleteVotesForCommentAndReplies(commentId);
+        
         // Delete the comment (cascade will handle replies)
         commentRepository.delete(comment);
+    }
+    
+    private void deleteVotesForCommentAndReplies(Long commentId) {
+        // Delete votes for this comment
+        commentVoteRepository.deleteByCommentId(commentId);
+        
+        // Find all replies to this comment
+        List<Comment> replies = commentRepository.findByParentCommentId(commentId);
+        for (Comment reply : replies) {
+            // Recursively delete votes for replies
+            deleteVotesForCommentAndReplies(reply.getId());
+        }
     }
     
     private User getCurrentUser() {

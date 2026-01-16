@@ -30,11 +30,6 @@ public class AdminController {
             @PathVariable Long postId,
             @RequestBody VerificationRequest request) {
         try {
-            // Debug logging
-            System.out.println("Verifying post ID: " + postId);
-            System.out.println("Approved: " + request.isApproved());
-            System.out.println("Rejection reason: " + request.getRejectionReason());
-            
             PostResponse post = postService.verifyPost(
                 postId, 
                 request.isApproved(), 
@@ -42,12 +37,8 @@ public class AdminController {
             );
             return ResponseEntity.ok(post);
         } catch (RuntimeException e) {
-            System.err.println("Error verifying post: " + e.getMessage());
-            e.printStackTrace();
             throw e; // Let GlobalExceptionHandler handle it
         } catch (Exception e) {
-            System.err.println("Unexpected error verifying post: " + e.getMessage());
-            e.printStackTrace();
             throw new RuntimeException("Failed to verify post: " + e.getMessage(), e);
         }
     }

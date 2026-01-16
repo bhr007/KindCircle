@@ -13,6 +13,7 @@ public class ConversationResponse {
     private Boolean locationSharingEnabled;
     private Boolean isDonor;
     private LocalDateTime lastActivityAt;
+    private DonationInfo donationInfo;
     
     public static ConversationResponse fromRequestAndLastMessage(
             BloodRequest request,
@@ -79,6 +80,9 @@ public class ConversationResponse {
     public LocalDateTime getLastActivityAt() { return lastActivityAt; }
     public void setLastActivityAt(LocalDateTime lastActivityAt) { this.lastActivityAt = lastActivityAt; }
     
+    public DonationInfo getDonationInfo() { return donationInfo; }
+    public void setDonationInfo(DonationInfo donationInfo) { this.donationInfo = donationInfo; }
+    
     // UserInfo class - same structure as BloodRequestResponse.UserInfo
     public static class UserInfo {
         private Long id;
@@ -113,5 +117,36 @@ public class ConversationResponse {
         
         public Integer getCurrentImpactScore() { return currentImpactScore; }
         public void setCurrentImpactScore(Integer currentImpactScore) { this.currentImpactScore = currentImpactScore; }
+    }
+    
+    // DonationInfo class
+    public static class DonationInfo {
+        private Long donationId;
+        private String status;
+        private Boolean donorConfirmed;
+        private Boolean requesterConfirmed;
+        
+        public static DonationInfo fromDonation(com.kindcircle.model.BloodDonation donation) {
+            if (donation == null) return null;
+            DonationInfo info = new DonationInfo();
+            info.setDonationId(donation.getId());
+            info.setStatus(donation.getStatus().name());
+            info.setDonorConfirmed(donation.getDonorConfirmed());
+            info.setRequesterConfirmed(donation.getRequesterConfirmed());
+            return info;
+        }
+        
+        // Getters and Setters
+        public Long getDonationId() { return donationId; }
+        public void setDonationId(Long donationId) { this.donationId = donationId; }
+        
+        public String getStatus() { return status; }
+        public void setStatus(String status) { this.status = status; }
+        
+        public Boolean getDonorConfirmed() { return donorConfirmed; }
+        public void setDonorConfirmed(Boolean donorConfirmed) { this.donorConfirmed = donorConfirmed; }
+        
+        public Boolean getRequesterConfirmed() { return requesterConfirmed; }
+        public void setRequesterConfirmed(Boolean requesterConfirmed) { this.requesterConfirmed = requesterConfirmed; }
     }
 }

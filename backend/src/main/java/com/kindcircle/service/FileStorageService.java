@@ -72,7 +72,7 @@ public class FileStorageService {
             Path path = Paths.get(filePath);
             Files.deleteIfExists(path);
         } catch (IOException e) {
-            System.err.println("Error deleting file: " + filePath + " - " + e.getMessage());
+            // Silently handle file deletion errors
         }
     }
     

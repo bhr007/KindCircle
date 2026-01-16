@@ -1,7 +1,12 @@
 package com.kindcircle.controller;
 
 import com.kindcircle.dto.PostResponse;
+import com.kindcircle.dto.UserProfileResponse;
+import com.kindcircle.model.BloodDonation;
 import com.kindcircle.model.User;
+import com.kindcircle.repository.BloodDonationRepository;
+import com.kindcircle.repository.ChatRepository;
+import com.kindcircle.repository.VoteRepository;
 import com.kindcircle.service.FileStorageService;
 import com.kindcircle.service.PostService;
 import com.kindcircle.service.UserService;
@@ -13,6 +18,8 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/api/users")
@@ -28,10 +35,47 @@ public class UserController {
     @Autowired
     private PostService postService;
     
+    @Autowired
+    private ChatRepository chatRepository;
+    
+    @Autowired
+    private BloodDonationRepository bloodDonationRepository;
+    
+    @Autowired
+    private VoteRepository voteRepository;
+    
     @GetMapping("/{id}")
-    public ResponseEntity<User> getUserById(@PathVariable Long id) {
+    public ResponseEntity<UserProfileResponse> getUserById(@PathVariable Long id) {
         User user = userService.findById(id);
-        return ResponseEntity.ok(user);
+        
+        // Calculate upvotes and downvotes from all posts by this user
+        long totalUpvotes = voteRepository.countUpvotesByPostOwnerId(id);
+        long totalDownvotes = voteRepository.countDownvotesByPostOwnerId(id);
+        
+        // Update user's stored counts to match calculated values (for consistency)
+        user.setUpvotesReceived((int) totalUpvotes);
+        user.setDownvotesReceived((int) totalDownvotes);
+        userService.save(user);
+        
+        // Count distinct requests where user responded (as donor)
+        List<Long> requestIds = chatRepository.findDistinctRequestIdsByUserId(id);
+        Set<Long> distinctRequests = requestIds.stream()
+            .filter(reqId -> {
+                // Check if user is the sender (donor) in any chat for this request
+                List<com.kindcircle.model.Chat> chats = chatRepository.findByRelatedRequestIdOrderByCreatedAtAsc(reqId);
+                return chats.stream().anyMatch(chat -> chat.getSender().getId().equals(id));
+            })
+            .collect(Collectors.toSet());
+        Integer responseCount = distinctRequests.size();
+        
+        // Count successful donations where user is the donor
+        List<BloodDonation> completedDonations = bloodDonationRepository.findByDonorIdOrderByDonationDateDesc(id);
+        Integer successfulDonations = (int) completedDonations.stream()
+            .filter(donation -> donation.getStatus() == BloodDonation.Status.COMPLETED)
+            .count();
+        
+        UserProfileResponse response = UserProfileResponse.fromUser(user, responseCount, successfulDonations);
+        return ResponseEntity.ok(response);
     }
     
     @GetMapping("/me")
