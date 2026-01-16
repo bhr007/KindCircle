@@ -1,0 +1,26 @@
+# Uploads directory - contains user uploaded files
+uploads/
+
+# IDE
+.idea/
+.vscode/
+*.iml
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+# Node
+node_modules/
+npm-debug.log*
+
+# Build
+dist/
+target/
+
+# Environment
+.env
+.env.local
