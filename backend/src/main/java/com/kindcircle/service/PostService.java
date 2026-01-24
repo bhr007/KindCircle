@@ -42,6 +42,9 @@ public class PostService {
     @Autowired
     private NotificationService notificationService;
     
+    @Autowired
+    private CommentVoteRepository commentVoteRepository;
+    
     public List<PostResponse> getApprovedPosts(String sortBy) {
         List<SocialWorkPost> allPosts = postRepository.findApprovedPostsOrderByRecent();
         
@@ -389,8 +392,28 @@ public class PostService {
             fileStorageService.deleteFile(proof.getMediaUrl());
         }
         
+        // Delete all comment votes for all comments on this post before deleting comments
+        // This prevents foreign key constraint violations
+        // Only process top-level comments - recursion will handle all replies
+        List<Comment> topLevelComments = commentRepository.findByPostIdAndParentCommentIsNullOrderByCreatedAtDesc(postId);
+        for (Comment comment : topLevelComments) {
+            // Delete votes for this comment and all its replies recursively
+            deleteCommentVotesRecursively(comment.getId());
+        }
+        
         // Delete associated media proofs, votes, and comments (cascade should handle this)
         postRepository.delete(post);
+    }
+    
+    private void deleteCommentVotesRecursively(Long commentId) {
+        // Delete votes for this comment
+        commentVoteRepository.deleteByCommentId(commentId);
+        
+        // Find all replies to this comment and delete their votes recursively
+        List<Comment> replies = commentRepository.findByParentCommentId(commentId);
+        for (Comment reply : replies) {
+            deleteCommentVotesRecursively(reply.getId());
+        }
     }
     
     private User getCurrentUser() {
