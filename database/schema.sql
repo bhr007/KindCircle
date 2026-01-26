@@ -95,7 +95,7 @@ CREATE TABLE blood_requests (
     city VARCHAR(100) NOT NULL,
     urgency_level ENUM('LOW', 'MEDIUM', 'HIGH', 'CRITICAL') DEFAULT 'MEDIUM',
     description TEXT,
-    status ENUM('OPEN', 'MATCHED', 'IN_PROGRESS', 'COMPLETED', 'CANCELLED') DEFAULT 'OPEN',
+    status ENUM('OPEN', 'MATCHED', 'IN_PROGRESS', 'COMPLETED', 'CANCELLED', 'MANAGED') DEFAULT 'OPEN',
     impact_score_required INT NOT NULL, -- Must be >= 100 * bags_required
     matched_donor_id BIGINT,
     matched_at TIMESTAMP NULL,

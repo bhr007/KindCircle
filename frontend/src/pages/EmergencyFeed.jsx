@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { useAuth } from '../context/AuthContext'
 import api from '../services/api'
 import { toast } from 'react-toastify'
+import { FaTrash } from 'react-icons/fa'
 import './EmergencyFeed.css'
 
 const EmergencyFeed = () => {
@@ -16,6 +17,7 @@ const EmergencyFeed = () => {
   const [showLocation, setShowLocation] = useState(false)
   const [locationData, setLocationData] = useState(null)
   const [deletingRequestId, setDeletingRequestId] = useState(null)
+  const [markingAsManagedId, setMarkingAsManagedId] = useState(null)
 
   // Form state
   const [formData, setFormData] = useState({
@@ -171,6 +173,23 @@ const EmergencyFeed = () => {
       }
     } catch (error) {
       toast.error(error.response?.data?.message || 'Failed to confirm donation')
+    }
+  }
+
+  const handleMarkAsManaged = async (requestId) => {
+    if (!window.confirm('Mark this blood request as managed? It will be removed from the emergency feed.')) {
+      return
+    }
+    
+    setMarkingAsManagedId(requestId)
+    try {
+      await api.post(`/emergency/${requestId}/mark-managed`)
+      toast.success('Blood request marked as managed')
+      fetchRequests()
+    } catch (error) {
+      toast.error(error.response?.data?.message || 'Failed to mark request as managed')
+    } finally {
+      setMarkingAsManagedId(null)
     }
   }
 
@@ -443,13 +462,22 @@ const EmergencyFeed = () => {
 
               <div className="request-footer">
                 {request.status === 'OPEN' && request.requester.id === user.id && (
-                  <button
-                    onClick={() => handleDeleteRequest(request.id)}
-                    disabled={deletingRequestId === request.id}
-                    className="btn btn-danger"
-                  >
-                    {deletingRequestId === request.id ? 'Deleting...' : '🗑️ Delete Request'}
-                  </button>
+                  <div style={{ display: 'flex', gap: '10px' }}>
+                    <button
+                      onClick={() => handleMarkAsManaged(request.id)}
+                      disabled={markingAsManagedId === request.id}
+                      className="btn btn-secondary"
+                    >
+                      {markingAsManagedId === request.id ? 'Marking...' : 'Mark As Managed'}
+                    </button>
+                    <button
+                      onClick={() => handleDeleteRequest(request.id)}
+                      disabled={deletingRequestId === request.id}
+                      className="btn btn-danger"
+                    >
+                      {deletingRequestId === request.id ? 'Deleting...' : <><FaTrash /> Delete Request</>}
+                    </button>
+                  </div>
                 )}
                 {request.status === 'OPEN' && request.requester.id !== user.id && (
                 <button
@@ -534,9 +562,6 @@ const EmergencyFeed = () => {
                     )}
                   </>
                 )}
-                <span className="request-date">
-                  {new Date(request.createdAt).toLocaleString()}
-                </span>
               </div>
             </div>
           ))

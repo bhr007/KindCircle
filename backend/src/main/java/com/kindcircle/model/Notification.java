@@ -24,6 +24,9 @@ public class Notification {
     
     @Column(name = "related_post_id")
     private Long relatedPostId;
+
+    @Column(name = "related_campaign_id")
+    private Long relatedCampaignId;
     
     @Column(name = "related_user_id")
     private Long relatedUserId;
@@ -35,7 +38,8 @@ public class Notification {
     private LocalDateTime createdAt = LocalDateTime.now();
     
     public enum NotificationType {
-        UPVOTE, DOWNVOTE, COMMENT, POST_APPROVED, POST_REJECTED
+        UPVOTE, DOWNVOTE, COMMENT, POST_APPROVED, POST_REJECTED,
+        POST_PENDING_APPROVAL, CAMPAIGN_PENDING_APPROVAL
     }
     
     // Getters and Setters
@@ -53,6 +57,9 @@ public class Notification {
     
     public Long getRelatedPostId() { return relatedPostId; }
     public void setRelatedPostId(Long relatedPostId) { this.relatedPostId = relatedPostId; }
+
+    public Long getRelatedCampaignId() { return relatedCampaignId; }
+    public void setRelatedCampaignId(Long relatedCampaignId) { this.relatedCampaignId = relatedCampaignId; }
     
     public Long getRelatedUserId() { return relatedUserId; }
     public void setRelatedUserId(Long relatedUserId) { this.relatedUserId = relatedUserId; }

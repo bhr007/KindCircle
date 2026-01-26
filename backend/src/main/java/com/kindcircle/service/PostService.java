@@ -47,6 +47,7 @@ public class PostService {
     
     public List<PostResponse> getApprovedPosts(String sortBy) {
         List<SocialWorkPost> allPosts = postRepository.findApprovedPostsOrderByRecent();
+        User currentUser = getCurrentUser();
         
         // Load all posts with their vote and comment counts
         List<PostResponse> postResponses = allPosts.stream()
@@ -61,7 +62,15 @@ public class PostService {
                 Long upvotes = voteRepository.countByPostIdAndVoteType(post.getId(), Vote.VoteType.UPVOTE);
                 Long downvotes = voteRepository.countByPostIdAndVoteType(post.getId(), Vote.VoteType.DOWNVOTE);
                 Long commentsCount = (long) commentRepository.findByPostIdOrderByCreatedAtDesc(post.getId()).size();
-                return PostResponse.fromPost(post, upvotes, downvotes, commentsCount);
+                
+                // Get current user's vote for this post
+                String userVote = currentUser != null
+                    ? voteRepository.findByUserIdAndPostId(currentUser.getId(), post.getId())
+                        .map(vote -> vote.getVoteType().name())
+                        .orElse(null)
+                    : null;
+                
+                return PostResponse.fromPost(post, upvotes, downvotes, commentsCount, userVote);
             })
             .collect(Collectors.toList());
         
@@ -161,6 +170,12 @@ public class PostService {
         }
         
         // Impact score and user stats will be updated when admin approves the post
+
+        notificationService.notifyAdminsForPostPending(
+                savedPost.getId(),
+                currentUser.getId(),
+                currentUser.getFullName(),
+                savedPost.getTitle());
         
         // Load media proofs explicitly
         List<com.kindcircle.model.MediaProof> mediaProofs = mediaProofRepository.findByPostId(savedPost.getId());
@@ -173,7 +188,12 @@ public class PostService {
         Long downvotes = voteRepository.countByPostIdAndVoteType(savedPost.getId(), Vote.VoteType.DOWNVOTE);
         Long commentsCount = (long) commentRepository.findByPostIdOrderByCreatedAtDesc(savedPost.getId()).size();
         
-        return PostResponse.fromPost(savedPost, upvotes, downvotes, commentsCount);
+        // Get current user's vote (for new post, user won't have voted yet, so null)
+        String userVote = voteRepository.findByUserIdAndPostId(currentUser.getId(), savedPost.getId())
+            .map(vote -> vote.getVoteType().name())
+            .orElse(null);
+        
+        return PostResponse.fromPost(savedPost, upvotes, downvotes, commentsCount, userVote);
     }
     
     @Transactional
@@ -284,7 +304,7 @@ public class PostService {
                 Long upvotes = voteRepository.countByPostIdAndVoteType(post.getId(), Vote.VoteType.UPVOTE);
                 Long downvotes = voteRepository.countByPostIdAndVoteType(post.getId(), Vote.VoteType.DOWNVOTE);
                 Long commentsCount = (long) commentRepository.findByPostIdOrderByCreatedAtDesc(post.getId()).size();
-                return PostResponse.fromPost(post, upvotes, downvotes, commentsCount);
+                return PostResponse.fromPost(post, upvotes, downvotes, commentsCount, null);
             })
             .collect(Collectors.toList());
     }
@@ -305,7 +325,16 @@ public class PostService {
                 Long upvotes = voteRepository.countByPostIdAndVoteType(post.getId(), Vote.VoteType.UPVOTE);
                 Long downvotes = voteRepository.countByPostIdAndVoteType(post.getId(), Vote.VoteType.DOWNVOTE);
                 Long commentsCount = (long) commentRepository.findByPostIdOrderByCreatedAtDesc(post.getId()).size();
-                return PostResponse.fromPost(post, upvotes, downvotes, commentsCount);
+                
+                // Get current user's vote
+                User currentUser = getCurrentUser();
+                String userVote = currentUser != null
+                    ? voteRepository.findByUserIdAndPostId(currentUser.getId(), post.getId())
+                        .map(vote -> vote.getVoteType().name())
+                        .orElse(null)
+                    : null;
+                
+                return PostResponse.fromPost(post, upvotes, downvotes, commentsCount, userVote);
             })
             .collect(Collectors.toList());
     }
@@ -363,7 +392,15 @@ public class PostService {
         Long downvotes = voteRepository.countByPostIdAndVoteType(postId, Vote.VoteType.DOWNVOTE);
         Long commentsCount = (long) commentRepository.findByPostIdOrderByCreatedAtDesc(postId).size();
         
-        return PostResponse.fromPost(savedPost, upvotes, downvotes, commentsCount);
+        // Get current user's vote
+        User currentUserVote = getCurrentUser();
+        final String finalUserVote = currentUserVote != null
+            ? voteRepository.findByUserIdAndPostId(currentUserVote.getId(), postId)
+                .map(vote -> vote.getVoteType().name())
+                .orElse(null)
+            : null;
+        
+        return PostResponse.fromPost(savedPost, upvotes, downvotes, commentsCount, finalUserVote);
     }
     
     private int calculateImpactScore(SocialWorkPost.ActivityType activityType) {

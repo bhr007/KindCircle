@@ -68,7 +68,7 @@ public class BloodRequest {
     }
     
     public enum Status {
-        OPEN, MATCHED, IN_PROGRESS, COMPLETED, CANCELLED
+        OPEN, MATCHED, IN_PROGRESS, COMPLETED, CANCELLED, MANAGED
     }
     
     // Getters and Setters

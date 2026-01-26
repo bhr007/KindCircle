@@ -146,25 +146,40 @@
   gap: 5px;
 }
 
+.comment-vote-btn svg {
+  font-size: 13px;
+}
+
 .comment-vote-btn:hover:not(:disabled) {
   background: #f0f0f0;
   border-color: #dc3545;
 }
 
 .comment-vote-btn.active {
-  background: #dc3545;
-  color: white;
+  color: #dc3545;
   border-color: #dc3545;
+}
+
+.comment-vote-btn.active svg {
+  color: #dc3545;
 }
 
 .comment-vote-btn.upvote.active {
-  background: #28a745;
-  border-color: #28a745;
+  color: #dc3545;
+  border-color: #dc3545;
+}
+
+.comment-vote-btn.upvote.active svg {
+  color: #dc3545;
 }
 
 .comment-vote-btn.downvote.active {
-  background: #dc3545;
+  color: #dc3545;
   border-color: #dc3545;
+}
+
+.comment-vote-btn.downvote.active svg {
+  color: #dc3545;
 }
 
 .comment-vote-btn:disabled {
@@ -180,6 +195,13 @@
   cursor: pointer;
   font-size: 13px;
   transition: color 0.2s;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.comment-reply-btn svg {
+  font-size: 13px;
 }
 
 .comment-reply-btn:hover {

@@ -14,4 +14,5 @@ public interface BloodRequestRepository extends JpaRepository<BloodRequest, Long
     List<BloodRequest> findByRequesterIdOrderByCreatedAtDesc(Long requesterId);
     List<BloodRequest> findByMatchedDonorIdOrderByCreatedAtDesc(Long donorId);
     List<BloodRequest> findByCityAndStatusOrderByCreatedAtDesc(String city, BloodRequest.Status status);
+    List<BloodRequest> findByStatusInOrderByCreatedAtDesc(List<BloodRequest.Status> statuses);
 }

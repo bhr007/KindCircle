@@ -52,7 +52,7 @@
 .nav-user {
   display: flex;
   align-items: center;
-  gap: 20px;
+  gap: 15px;
 }
 
 .notification-dropdown {
@@ -66,10 +66,12 @@
   font-size: 24px;
   cursor: pointer;
   padding: 8px;
-  margin-right: 10px;
+  margin-right: 0;
   text-decoration: none;
   color: inherit;
-  display: inline-block;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .notification-button {

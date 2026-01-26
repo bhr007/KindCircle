@@ -4,6 +4,7 @@ import { Link } from 'react-router-dom'
 import api from '../services/api'
 import { toast } from 'react-toastify'
 import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet'
+import { FaTrash } from 'react-icons/fa'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
 import './Inbox.css'
@@ -110,11 +111,13 @@ const Inbox = () => {
       
       // Update selected conversation if it's still open and we're on active tab
       if (selectedConversation && activeTab === 'active') {
-        const updated = response.data.find(c => c.requestId === selectedConversation.requestId)
+        const updated = response.data.find(c =>
+          c.requestId === selectedConversation.requestId &&
+          c.otherUser?.id === selectedConversation.otherUser?.id
+        )
         if (updated) {
           setSelectedConversation(updated)
         } else {
-          // Conversation was deleted or archived, clear selection only if on active tab
           setSelectedConversation(null)
         }
       }
@@ -132,11 +135,13 @@ const Inbox = () => {
       
       // Update selected conversation if it's still open and we're on archived tab
       if (selectedConversation && activeTab === 'archived') {
-        const updated = response.data.find(c => c.requestId === selectedConversation.requestId)
+        const updated = response.data.find(c =>
+          c.requestId === selectedConversation.requestId &&
+          c.otherUser?.id === selectedConversation.otherUser?.id
+        )
         if (updated) {
           setSelectedConversation(updated)
         } else {
-          // Conversation was deleted, clear selection only if on archived tab
           setSelectedConversation(null)
         }
       }
@@ -147,9 +152,13 @@ const Inbox = () => {
 
   const fetchMessages = async () => {
     if (!selectedConversation) return
-    
     try {
-      const response = await api.get(`/emergency/inbox/${selectedConversation.requestId}/messages`)
+      const rid = selectedConversation.requestId
+      const oid = selectedConversation.otherUser?.id
+      const url = oid != null
+        ? `/emergency/inbox/${rid}/messages?otherUserId=${oid}`
+        : `/emergency/inbox/${rid}/messages`
+      const response = await api.get(url)
       setMessages(response.data)
     } catch (error) {
       console.error('Failed to fetch messages', error)
@@ -189,10 +198,14 @@ const Inbox = () => {
 
   const markAsRead = async () => {
     if (!selectedConversation) return
-    
     try {
-      await api.post(`/emergency/inbox/${selectedConversation.requestId}/mark-read`)
-      fetchConversations() // Refresh to update unread count
+      const rid = selectedConversation.requestId
+      const oid = selectedConversation.otherUser?.id
+      const url = oid != null
+        ? `/emergency/inbox/${rid}/mark-read?otherUserId=${oid}`
+        : `/emergency/inbox/${rid}/mark-read`
+      await api.post(url)
+      fetchConversations()
     } catch (error) {
       console.error('Failed to mark as read', error)
     }
@@ -206,8 +219,10 @@ const Inbox = () => {
     setNewMessage('') // Clear input immediately for better UX
 
     try {
-      await api.post(`/emergency/${selectedConversation.requestId}/chat`, { message: messageToSend })
-      // Fetch messages immediately after sending
+      await api.post(`/emergency/${selectedConversation.requestId}/chat`, {
+        message: messageToSend,
+        receiverId: selectedConversation.otherUser?.id
+      })
       await fetchMessages()
       await fetchConversations()
     } catch (error) {
@@ -253,7 +268,10 @@ const Inbox = () => {
       const conversationsResponse = await api.get('/emergency/inbox/conversations')
       setConversations(conversationsResponse.data)
       // Refresh selected conversation
-      const updated = conversationsResponse.data.find(c => c.requestId === selectedConversation.requestId)
+      const updated = conversationsResponse.data.find(c =>
+        c.requestId === selectedConversation.requestId &&
+        c.otherUser?.id === selectedConversation.otherUser?.id
+      )
       if (updated) {
         setSelectedConversation(updated)
       }
@@ -276,7 +294,10 @@ const Inbox = () => {
       const conversationsResponse = await api.get('/emergency/inbox/conversations')
       setConversations(conversationsResponse.data)
       // Refresh selected conversation
-      const updated = conversationsResponse.data.find(c => c.requestId === selectedConversation.requestId)
+      const updated = conversationsResponse.data.find(c =>
+        c.requestId === selectedConversation.requestId &&
+        c.otherUser?.id === selectedConversation.otherUser?.id
+      )
       if (updated) {
         setSelectedConversation(updated)
         if (updated.locationSharingEnabled) {
@@ -313,7 +334,10 @@ const Inbox = () => {
       const conversationsResponse = await api.get('/emergency/inbox/conversations')
       setConversations(conversationsResponse.data)
       // Refresh selected conversation
-      const updated = conversationsResponse.data.find(c => c.requestId === selectedConversation.requestId)
+      const updated = conversationsResponse.data.find(c =>
+        c.requestId === selectedConversation.requestId &&
+        c.otherUser?.id === selectedConversation.otherUser?.id
+      )
       if (updated) {
         setSelectedConversation(updated)
       }
@@ -336,7 +360,12 @@ const Inbox = () => {
     
     setArchivingConversation(true)
     try {
-      await api.post(`/emergency/inbox/${selectedConversation.requestId}/archive`)
+      const rid = selectedConversation.requestId
+      const oid = selectedConversation.otherUser?.id
+      const url = oid != null
+        ? `/emergency/inbox/${rid}/archive?otherUserId=${oid}`
+        : `/emergency/inbox/${rid}/archive`
+      await api.post(url)
       toast.success('Conversation archived successfully')
       await fetchConversations()
       await fetchArchivedConversations()
@@ -354,7 +383,12 @@ const Inbox = () => {
     
     setDeletingConversation(true)
     try {
-      await api.delete(`/emergency/inbox/${selectedConversation.requestId}/conversation`)
+      const rid = selectedConversation.requestId
+      const oid = selectedConversation.otherUser?.id
+      const url = oid != null
+        ? `/emergency/inbox/${rid}/conversation?otherUserId=${oid}`
+        : `/emergency/inbox/${rid}/conversation`
+      await api.delete(url)
       toast.success('Conversation deleted successfully')
       await fetchConversations()
       await fetchArchivedConversations()
@@ -444,9 +478,10 @@ const Inbox = () => {
             ) : (
               conversations.map((conversation) => (
                 <div
-                  key={conversation.requestId}
+                  key={`${conversation.requestId}-${conversation.otherUser?.id ?? 'x'}`}
                   className={`conversation-item ${
-                    selectedConversation?.requestId === conversation.requestId ? 'active' : ''
+                    selectedConversation?.requestId === conversation.requestId &&
+                    selectedConversation?.otherUser?.id === conversation.otherUser?.id ? 'active' : ''
                   } ${conversation.unreadCount > 0 ? 'unread' : ''}`}
                   onClick={() => handleSelectConversation(conversation)}
                 >
@@ -494,9 +529,10 @@ const Inbox = () => {
             ) : (
               archivedConversations.map((conversation) => (
                 <div
-                  key={conversation.requestId}
+                  key={`${conversation.requestId}-${conversation.otherUser?.id ?? 'x'}`}
                   className={`conversation-item archived ${
-                    selectedConversation?.requestId === conversation.requestId ? 'active' : ''
+                    selectedConversation?.requestId === conversation.requestId &&
+                    selectedConversation?.otherUser?.id === conversation.otherUser?.id ? 'active' : ''
                   }`}
                   onClick={() => handleSelectConversation(conversation)}
                 >
@@ -576,7 +612,7 @@ const Inbox = () => {
                   className="btn-delete-conversation"
                   title="Delete conversation"
                 >
-                  {deletingConversation ? 'Deleting...' : '🗑️ Delete Chat'}
+                  {deletingConversation ? 'Deleting...' : <><FaTrash /> Delete Chat</>}
                 </button>
               </div>
             </div>

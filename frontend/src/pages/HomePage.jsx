@@ -41,14 +41,34 @@ const HomePage = () => {
     }
   }, [posts, searchParams, setSearchParams])
 
-  const fetchPosts = async () => {
+  const fetchPosts = async (preserveScroll = false) => {
     try {
-      setLoading(true)
+      // Save scroll position if requested
+      const scrollPosition = preserveScroll ? window.scrollY || document.documentElement.scrollTop : null
+      
+      // Only show loading state on initial load, not when refreshing
+      if (!preserveScroll) {
+        setLoading(true)
+      }
+      
       const response = await api.get(`/feed?sort=${sortBy}`)
       console.log('Fetched posts response:', response)
       console.log('Fetched posts data:', response.data)
       if (response.data && Array.isArray(response.data)) {
         setPosts(response.data)
+        
+        // Restore scroll position after DOM updates
+        if (preserveScroll && scrollPosition !== null) {
+          // Use requestAnimationFrame to ensure DOM has updated
+          requestAnimationFrame(() => {
+            requestAnimationFrame(() => {
+              window.scrollTo({
+                top: scrollPosition,
+                behavior: 'auto' // Instant scroll, not smooth
+              })
+            })
+          })
+        }
       } else {
         console.warn('Unexpected response format:', response.data)
         setPosts([])
@@ -64,7 +84,7 @@ const HomePage = () => {
   }
 
   const refreshPosts = () => {
-    fetchPosts()
+    fetchPosts(true) // Preserve scroll position when refreshing
   }
 
   if (loading) {
@@ -76,38 +96,38 @@ const HomePage = () => {
       <div className="feed-header">
         <h1>News Feed</h1>
         <div className="header-actions">
+          <div className="sort-options">
+            <button
+              className={sortBy === 'recent' ? 'active' : ''}
+              onClick={() => setSortBy('recent')}
+            >
+              Most Recent
+            </button>
+            <button
+              className={sortBy === 'trending' ? 'active' : ''}
+              onClick={() => setSortBy('trending')}
+            >
+              Trending
+            </button>
+            <button
+              className={sortBy === 'votes' ? 'active' : ''}
+              onClick={() => setSortBy('votes')}
+            >
+              Top Voted
+            </button>
+            <button
+              className={sortBy === 'impactful' ? 'active' : ''}
+              onClick={() => setSortBy('impactful')}
+            >
+              Most Impactful
+            </button>
+          </div>
           <button
             className="btn-create-post"
             onClick={() => navigate('/post')}
           >
             + Create Post
           </button>
-          <div className="sort-options">
-          <button
-            className={sortBy === 'recent' ? 'active' : ''}
-            onClick={() => setSortBy('recent')}
-          >
-            Most Recent
-          </button>
-          <button
-            className={sortBy === 'trending' ? 'active' : ''}
-            onClick={() => setSortBy('trending')}
-          >
-            Trending
-          </button>
-          <button
-            className={sortBy === 'votes' ? 'active' : ''}
-            onClick={() => setSortBy('votes')}
-          >
-            Top Voted
-          </button>
-          <button
-            className={sortBy === 'impactful' ? 'active' : ''}
-            onClick={() => setSortBy('impactful')}
-          >
-            Most Impactful
-          </button>
-          </div>
         </div>
       </div>
 

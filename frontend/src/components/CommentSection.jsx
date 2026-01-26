@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react'
 import api from '../services/api'
 import { toast } from 'react-toastify'
 import { useAuth } from '../context/AuthContext'
+import { FaTrash, FaThumbsUp, FaThumbsDown, FaComment } from 'react-icons/fa'
 import './CommentSection.css'
 
 const CommentSection = ({ postId, postOwnerId, onCommentAdded }) => {
@@ -72,7 +73,11 @@ const CommentSection = ({ postId, postOwnerId, onCommentAdded }) => {
   }
 
 
-  const handleVote = async (commentId, voteType) => {
+  const handleVote = async (e, commentId, voteType) => {
+    if (e) {
+      e.preventDefault()
+      e.stopPropagation()
+    }
     if (votingCommentId === commentId) return
     
     setVotingCommentId(commentId)
@@ -233,26 +238,28 @@ const CommentSection = ({ postId, postOwnerId, onCommentAdded }) => {
         <p className="comment-content">{comment.content || ''}</p>
         <div className="comment-actions">
           <button
-            onClick={() => handleVote(comment.id, 'UPVOTE')}
+            type="button"
+            onClick={(e) => handleVote(e, comment.id, 'UPVOTE')}
             disabled={votingCommentId === comment.id}
             className={`comment-vote-btn upvote ${currentUserVote === 'UPVOTE' ? 'active' : ''}`}
             title="Upvote"
           >
-            👍 {comment.upvotes || 0}
+            <FaThumbsUp /> {comment.upvotes || 0}
           </button>
           <button
-            onClick={() => handleVote(comment.id, 'DOWNVOTE')}
+            type="button"
+            onClick={(e) => handleVote(e, comment.id, 'DOWNVOTE')}
             disabled={votingCommentId === comment.id}
             className={`comment-vote-btn downvote ${currentUserVote === 'DOWNVOTE' ? 'active' : ''}`}
             title="Downvote"
           >
-            👎 {comment.downvotes || 0}
+            <FaThumbsDown /> {comment.downvotes || 0}
           </button>
           <button
             onClick={toggleReplyForm}
             className={`comment-reply-btn ${showReplyForm ? 'active' : ''}`}
           >
-            💬 Reply {comment.repliesCount > 0 && `(${comment.repliesCount})`}
+            <FaComment /> Reply {comment.repliesCount > 0 && `(${comment.repliesCount})`}
           </button>
           {canDeleteComment(comment) && (
             <button
@@ -261,7 +268,7 @@ const CommentSection = ({ postId, postOwnerId, onCommentAdded }) => {
               className="comment-delete-btn"
               title="Delete comment"
             >
-              {deletingCommentId === comment.id ? '...' : '🗑️'}
+              {deletingCommentId === comment.id ? '...' : <FaTrash />}
             </button>
           )}
         </div>

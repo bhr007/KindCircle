@@ -1,6 +1,7 @@
 import { Outlet, Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { useState, useEffect } from 'react'
+import { FaInbox, FaBell } from 'react-icons/fa'
 import api from '../services/api'
 import './Layout.css'
 
@@ -155,12 +156,20 @@ const Layout = () => {
       handleMarkAsRead(notification.id)
     }
     setShowNotifications(false)
+    const type = notification.notificationType || notification.notification_type
     const postId = notification.relatedPostId || notification.related_post_id
+    const campaignId = notification.relatedCampaignId || notification.related_campaign_id
+
+    if (type === 'POST_PENDING_APPROVAL') {
+      navigate('/admin?tab=posts')
+      return
+    }
+    if (type === 'CAMPAIGN_PENDING_APPROVAL') {
+      navigate('/admin?tab=campaigns')
+      return
+    }
     if (postId) {
-      // Navigate to homepage with postId and openComments params
-      // If it's a comment notification, open the comment section
-      const notificationType = notification.notificationType || notification.notification_type
-      const openComments = notificationType === 'COMMENT'
+      const openComments = type === 'COMMENT'
       navigate(`/?postId=${postId}${openComments ? '&openComments=true' : ''}`)
     }
   }
@@ -219,7 +228,7 @@ const Layout = () => {
               }}
               title="Emergency Inbox"
             >
-              📬
+              <FaInbox />
               {inboxUnreadCount > 0 && (
                 <span className="notification-badge">{inboxUnreadCount > 99 ? '99+' : inboxUnreadCount}</span>
               )}
@@ -233,7 +242,7 @@ const Layout = () => {
                 }}
                 title="Notifications"
               >
-                🔔
+                <FaBell />
                 {unreadCount > 0 && (
                   <span className="notification-badge">{unreadCount > 99 ? '99+' : unreadCount}</span>
                 )}

@@ -40,14 +40,49 @@ public interface ChatRepository extends JpaRepository<Chat, Long> {
     List<Chat> findActiveMessagesByRequestIdAndUserId(@Param("requestId") Long requestId, @Param("userId") Long userId);
     
     // Find conversations that are not archived and not deleted for a user
-    // A conversation is considered active if there's at least one non-deleted, non-archived message
-    @Query("SELECT DISTINCT c.relatedRequest.id FROM Chat c WHERE (c.sender.id = :userId OR c.receiver.id = :userId) AND c.relatedRequest IS NOT NULL AND (c.isDeleted = false OR c.isDeleted IS NULL) AND (c.isArchived = false OR c.isArchived IS NULL OR c.archivedByUserId != :userId OR c.archivedByUserId IS NULL)")
-    List<Long> findActiveConversationRequestIdsByUserId(@Param("userId") Long userId);
-    
-    // Find archived conversations for a user (non-deleted messages)
-    @Query("SELECT DISTINCT c.relatedRequest.id FROM Chat c WHERE (c.sender.id = :userId OR c.receiver.id = :userId) AND c.relatedRequest IS NOT NULL AND c.isArchived = true AND c.archivedByUserId = :userId AND (c.isDeleted = false OR c.isDeleted IS NULL)")
-    List<Long> findArchivedConversationRequestIdsByUserId(@Param("userId") Long userId);
-    
+    // Returns Object[] { requestId, otherUserId } — one row per distinct (request, other-user) thread
+    @Query("SELECT DISTINCT c.relatedRequest.id, " +
+           "CASE WHEN c.sender.id = :userId THEN c.receiver.id ELSE c.sender.id END " +
+           "FROM Chat c " +
+           "WHERE (c.sender.id = :userId OR c.receiver.id = :userId) " +
+           "AND c.relatedRequest IS NOT NULL " +
+           "AND (c.isDeleted = false OR c.isDeleted IS NULL) " +
+           "AND (c.isArchived = false OR c.isArchived IS NULL OR c.archivedByUserId != :userId OR c.archivedByUserId IS NULL)")
+    List<Object[]> findActiveConversations(@Param("userId") Long userId);
+
+    // Archived conversations: same (requestId, otherUserId) shape
+    @Query("SELECT DISTINCT c.relatedRequest.id, " +
+           "CASE WHEN c.sender.id = :userId THEN c.receiver.id ELSE c.sender.id END " +
+           "FROM Chat c " +
+           "WHERE (c.sender.id = :userId OR c.receiver.id = :userId) " +
+           "AND c.relatedRequest IS NOT NULL " +
+           "AND c.isArchived = true AND c.archivedByUserId = :userId " +
+           "AND (c.isDeleted = false OR c.isDeleted IS NULL)")
+    List<Object[]> findArchivedConversations(@Param("userId") Long userId);
+
+    // Messages between two users for a specific request (1-to-1 thread)
+    @Query("SELECT c FROM Chat c WHERE c.relatedRequest.id = :requestId " +
+           "AND ((c.sender.id = :userId AND c.receiver.id = :otherUserId) OR (c.sender.id = :otherUserId AND c.receiver.id = :userId)) " +
+           "AND (c.isDeleted = false OR c.isDeleted IS NULL) ORDER BY c.createdAt ASC")
+    List<Chat> findMessagesBetweenUsers(@Param("requestId") Long requestId,
+                                        @Param("userId") Long userId,
+                                        @Param("otherUserId") Long otherUserId);
+
+    // Last message in a (requestId, userId, otherUserId) thread
+    @Query("SELECT c FROM Chat c WHERE c.relatedRequest.id = :requestId " +
+           "AND ((c.sender.id = :userId AND c.receiver.id = :otherUserId) OR (c.sender.id = :otherUserId AND c.receiver.id = :userId)) " +
+           "AND (c.isDeleted = false OR c.isDeleted IS NULL) ORDER BY c.createdAt DESC")
+    List<Chat> findLastMessageBetweenUsers(@Param("requestId") Long requestId,
+                                           @Param("userId") Long userId,
+                                           @Param("otherUserId") Long otherUserId);
+
+    // Unread count from a specific user in a request thread
+    @Query("SELECT COUNT(c) FROM Chat c WHERE c.relatedRequest.id = :requestId " +
+           "AND c.receiver.id = :userId AND c.sender.id = :otherUserId AND c.isRead = false")
+    Long countUnreadFromUser(@Param("requestId") Long requestId,
+                             @Param("userId") Long userId,
+                             @Param("otherUserId") Long otherUserId);
+
     // Find conversations that are not deleted for a user (for deleteConversation check)
     @Query("SELECT c FROM Chat c WHERE c.relatedRequest.id = :requestId AND (c.sender.id = :userId OR c.receiver.id = :userId) AND (c.isDeleted = false OR c.isDeleted IS NULL) ORDER BY c.createdAt ASC")
     List<Chat> findNonDeletedMessagesByRequestIdAndUserId(@Param("requestId") Long requestId, @Param("userId") Long userId);

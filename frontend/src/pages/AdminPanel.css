@@ -27,6 +27,35 @@
   opacity: 0.9;
 }
 
+.admin-tabs {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 24px;
+  border-bottom: 2px solid #e0e0e0;
+}
+
+.admin-tab {
+  background: none;
+  border: none;
+  padding: 12px 24px;
+  font-size: 16px;
+  font-weight: 600;
+  color: #666;
+  cursor: pointer;
+  border-bottom: 3px solid transparent;
+  transition: all 0.2s;
+  margin-bottom: -2px;
+}
+
+.admin-tab:hover {
+  color: #dc3545;
+}
+
+.admin-tab.active {
+  color: #dc3545;
+  border-bottom-color: #dc3545;
+}
+
 .admin-section {
   background: white;
   border-radius: 12px;
@@ -302,6 +331,24 @@
 .btn-confirm-reject:disabled {
   opacity: 0.5;
   cursor: not-allowed;
+}
+
+.campaign-details {
+  margin: 16px 0;
+  padding: 16px;
+  background: #f8f9fa;
+  border-radius: 8px;
+  border-left: 4px solid #dc3545;
+}
+
+.campaign-details p {
+  margin: 8px 0;
+  color: #555;
+  line-height: 1.6;
+}
+
+.campaign-details strong {
+  color: #333;
 }
 
 .loading {

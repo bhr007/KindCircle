@@ -10,6 +10,8 @@ import ResetPassword from './pages/ResetPassword'
 import HomePage from './pages/HomePage'
 import EmergencyFeed from './pages/EmergencyFeed'
 import AwarenessCampaign from './pages/AwarenessCampaign'
+import CampaignDetail from './pages/CampaignDetail'
+import CreateCampaign from './pages/CreateCampaign'
 import Profile from './pages/Profile'
 import Settings from './pages/Settings'
 import AdminPanel from './pages/AdminPanel'
@@ -41,6 +43,8 @@ function App() {
             <Route path="emergency" element={<EmergencyFeed />} />
             <Route path="inbox" element={<Inbox />} />
             <Route path="awareness" element={<AwarenessCampaign />} />
+            <Route path="awareness/create" element={<CreateCampaign />} />
+            <Route path="awareness/:id" element={<CampaignDetail />} />
             <Route path="profile" element={<Profile />} />
             <Route path="profile/:userId" element={<Profile />} />
             <Route path="settings" element={<Settings />} />

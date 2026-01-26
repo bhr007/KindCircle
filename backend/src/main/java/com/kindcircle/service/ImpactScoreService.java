@@ -20,6 +20,11 @@ public class ImpactScoreService {
     
     @Transactional
     public void addImpactScore(Long userId, int points, String activityType, Long referenceId, String description) {
+        addImpactScore(userId, points, activityType, referenceId, description, "SOCIAL_WORK_POST");
+    }
+
+    @Transactional
+    public void addImpactScore(Long userId, int points, String activityType, Long referenceId, String description, String referenceType) {
         User user = userService.findById(userId);
         user.setCurrentImpactScore(user.getCurrentImpactScore() + points);
         userService.save(user);
@@ -31,7 +36,7 @@ public class ImpactScoreService {
         ledger.setPoints(points);
         ledger.setDescription(description);
         ledger.setReferenceId(referenceId);
-        ledger.setReferenceType("SOCIAL_WORK_POST");
+        ledger.setReferenceType(referenceType != null ? referenceType : "SOCIAL_WORK_POST");
         ledger.setCreatedAt(LocalDateTime.now());
         
         ledgerRepository.save(ledger);

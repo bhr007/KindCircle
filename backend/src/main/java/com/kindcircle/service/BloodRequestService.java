@@ -10,6 +10,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.Arrays;
 import java.util.List;
 
 @Service
@@ -37,20 +38,17 @@ public class BloodRequestService {
         User currentUser = getCurrentUser();
         String userBloodGroup = currentUser.getBloodGroup();
         
-        // Get all open requests
-        List<BloodRequest> allOpenRequests = bloodRequestRepository.findByStatusOrderByCreatedAtDesc(BloodRequest.Status.OPEN);
+        // OPEN, MATCHED, IN_PROGRESS — hide when COMPLETED or MANAGED
+        List<BloodRequest> allOpenRequests = bloodRequestRepository.findByStatusInOrderByCreatedAtDesc(
+            Arrays.asList(BloodRequest.Status.OPEN, BloodRequest.Status.MATCHED, BloodRequest.Status.IN_PROGRESS));
         
-        // Filter: show requests where user is requester OR requests matching user's blood group
         return allOpenRequests.stream()
             .filter(request -> {
-                // Always show user's own requests
-                if (request.getRequester().getId().equals(currentUser.getId())) {
-                    return true;
-                }
-                // Show requests matching user's blood group (if set)
-                if (userBloodGroup != null && !userBloodGroup.trim().isEmpty()) {
+                // Exclude MANAGED requests from the feed
+                if (request.getStatus() == BloodRequest.Status.MANAGED) return false;
+                if (request.getRequester().getId().equals(currentUser.getId())) return true;
+                if (userBloodGroup != null && !userBloodGroup.trim().isEmpty())
                     return request.getBloodGroup().equalsIgnoreCase(userBloodGroup);
-                }
                 return false;
             })
             .collect(java.util.stream.Collectors.toList());
@@ -248,8 +246,9 @@ public class BloodRequestService {
         return chatRepository.findByRelatedRequestIdOrderByCreatedAtAsc(requestId);
     }
     
-    public List<Chat> getChatMessagesForUser(Long requestId, Long userId) {
-        // Only return messages that are not deleted
+    public List<Chat> getChatMessagesForUser(Long requestId, Long userId, Long otherUserId) {
+        if (otherUserId != null)
+            return chatRepository.findMessagesBetweenUsers(requestId, userId, otherUserId);
         return chatRepository.findActiveMessagesByRequestIdAndUserId(requestId, userId);
     }
     
@@ -258,94 +257,65 @@ public class BloodRequestService {
     }
     
     @Transactional
-    public void markMessagesAsRead(Long requestId, Long userId) {
-        List<Chat> messages = chatRepository.findByRequestIdAndUserId(requestId, userId);
-        for (Chat message : messages) {
-            if (message.getReceiver().getId().equals(userId) && !message.getIsRead()) {
-                message.setIsRead(true);
+    public void markMessagesAsRead(Long requestId, Long userId, Long otherUserId) {
+        List<Chat> messages = otherUserId != null
+            ? chatRepository.findMessagesBetweenUsers(requestId, userId, otherUserId)
+            : chatRepository.findByRequestIdAndUserId(requestId, userId);
+        for (Chat m : messages) {
+            if (m.getReceiver().getId().equals(userId) && Boolean.FALSE.equals(m.getIsRead())) {
+                m.setIsRead(true);
             }
         }
         chatRepository.saveAll(messages);
     }
     
     public List<com.kindcircle.dto.ConversationResponse> getUserConversations(Long userId) {
-        // Only get active (non-archived) conversations
-        List<Long> requestIds = chatRepository.findActiveConversationRequestIdsByUserId(userId);
-        
-        return requestIds.stream()
-            .map(requestId -> {
+        List<Object[]> pairs = chatRepository.findActiveConversations(userId);
+        return pairs.stream()
+            .map(p -> {
+                Long requestId = (Long) p[0];
+                Long otherUserId = (Long) p[1];
                 BloodRequest request = bloodRequestRepository.findById(requestId).orElse(null);
                 if (request == null) return null;
-                
-                // Get last message (non-deleted for this user)
-                List<Chat> lastMessages = chatRepository.findLastMessageByRequestIdAndUserId(requestId, userId);
-                Chat lastMessage = lastMessages.isEmpty() ? null : lastMessages.get(0);
-                
-                // Get unread count
-                Long unreadCount = chatRepository.countUnreadByRequestIdAndReceiverId(requestId, userId);
-                
-                com.kindcircle.dto.ConversationResponse response = 
-                    com.kindcircle.dto.ConversationResponse.fromRequestAndLastMessage(
-                        request, lastMessage, unreadCount, userId);
-                
-                // Get donation info if exists
-                bloodDonationRepository.findByRequestId(requestId).ifPresent(donation -> {
-                    response.setDonationInfo(com.kindcircle.dto.ConversationResponse.DonationInfo.fromDonation(donation));
-                });
-                
-                return response;
+                List<Chat> last = chatRepository.findLastMessageBetweenUsers(requestId, userId, otherUserId);
+                Chat lastMessage = last.isEmpty() ? null : last.get(0);
+                Long unread = chatRepository.countUnreadFromUser(requestId, userId, otherUserId);
+                com.kindcircle.dto.ConversationResponse r =
+                    com.kindcircle.dto.ConversationResponse.fromRequestAndLastMessage(request, lastMessage, unread, userId);
+                r.setOtherUser(com.kindcircle.dto.ConversationResponse.UserInfo.fromUser(userService.findById(otherUserId)));
+                bloodDonationRepository.findByRequestId(requestId).ifPresent(d ->
+                    r.setDonationInfo(com.kindcircle.dto.ConversationResponse.DonationInfo.fromDonation(d)));
+                return r;
             })
-            .filter(conv -> conv != null)
+            .filter(c -> c != null)
             .sorted((a, b) -> b.getLastActivityAt().compareTo(a.getLastActivityAt()))
             .collect(java.util.stream.Collectors.toList());
     }
     
     @Transactional
-    public Chat sendMessage(Long requestId, String message) {
+    public Chat sendMessage(Long requestId, String message, Long receiverId) {
         User sender = getCurrentUser();
         BloodRequest request = bloodRequestRepository.findById(requestId)
             .orElseThrow(() -> new RuntimeException("Blood request not found"));
-        
-        // Determine receiver
-        User receiver = null;
-        boolean isRequester = sender.getId().equals(request.getRequester().getId());
-        
-        if (isRequester) {
-            // Sender is requester, receiver should be donor
-            if (request.getMatchedDonor() != null) {
-                // Use matched donor if available
-                receiver = request.getMatchedDonor();
-            } else {
-                // No matched donor yet, find the most recent donor from existing chats
-                List<Chat> existingChats = chatRepository.findByRelatedRequestIdOrderByCreatedAtAsc(requestId);
-                
-                // Find the most recent donor who sent a message (not the requester)
-                receiver = existingChats.stream()
-                    .filter(chat -> !chat.getSender().getId().equals(sender.getId()))
-                    .sorted((a, b) -> b.getCreatedAt().compareTo(a.getCreatedAt())) // Most recent first
-                    .map(Chat::getSender)
-                    .findFirst()
-                    .orElse(null);
-                
-                if (receiver == null) {
-                    throw new RuntimeException("No donor found for this request. Please wait for someone to respond first.");
-                }
-            }
+        User receiver;
+        if (receiverId != null) {
+            receiver = userService.findById(receiverId);
         } else {
-            // Sender is donor, receiver is always the requester
-            receiver = request.getRequester();
+            boolean isRequester = sender.getId().equals(request.getRequester().getId());
+            if (isRequester) {
+                if (request.getMatchedDonor() != null)
+                    receiver = request.getMatchedDonor();
+                else
+                    throw new RuntimeException("Recipient must be specified. Reply from a specific conversation.");
+            } else {
+                receiver = request.getRequester();
+            }
         }
-        
-        if (receiver == null) {
-            throw new RuntimeException("No receiver found for this message");
-        }
-        
         Chat chat = new Chat();
         chat.setSender(sender);
         chat.setReceiver(receiver);
         chat.setMessage(message);
         chat.setRelatedRequest(request);
-        
         return chatRepository.save(chat);
     }
     
@@ -411,6 +381,28 @@ public class BloodRequestService {
     }
     
     @Transactional
+    public void markAsManaged(Long requestId) {
+        User currentUser = getCurrentUser();
+        BloodRequest request = bloodRequestRepository.findById(requestId)
+            .orElseThrow(() -> new RuntimeException("Blood request not found"));
+        
+        // Only the requester can mark their own request as managed
+        if (!request.getRequester().getId().equals(currentUser.getId())) {
+            throw new RuntimeException("You can only mark your own blood requests as managed");
+        }
+        
+        // Can only mark OPEN requests as managed
+        if (request.getStatus() != BloodRequest.Status.OPEN) {
+            throw new RuntimeException("Only open requests can be marked as managed");
+        }
+        
+        // Update request status to MANAGED
+        request.setStatus(BloodRequest.Status.MANAGED);
+        request.setUpdatedAt(LocalDateTime.now());
+        bloodRequestRepository.save(request);
+    }
+    
+    @Transactional
     public void deleteRequest(Long requestId) {
         User currentUser = getCurrentUser();
         BloodRequest request = bloodRequestRepository.findById(requestId)
@@ -463,60 +455,46 @@ public class BloodRequestService {
     }
     
     @Transactional
-    public void archiveConversation(Long requestId) {
+    public void archiveConversation(Long requestId, Long otherUserId) {
         User currentUser = getCurrentUser();
-        // Get only non-deleted messages to archive
-        List<Chat> messages = chatRepository.findNonDeletedMessagesByRequestIdAndUserId(requestId, currentUser.getId());
-        
-        // Mark all non-deleted messages as archived for this user
-        for (Chat message : messages) {
-            message.setIsArchived(true);
-            message.setArchivedByUserId(currentUser.getId());
+        List<Chat> messages = otherUserId != null
+            ? chatRepository.findMessagesBetweenUsers(requestId, currentUser.getId(), otherUserId)
+            : chatRepository.findNonDeletedMessagesByRequestIdAndUserId(requestId, currentUser.getId());
+        for (Chat m : messages) {
+            m.setIsArchived(true);
+            m.setArchivedByUserId(currentUser.getId());
         }
         chatRepository.saveAll(messages);
     }
     
     @Transactional
-    public void deleteConversation(Long requestId) {
+    public void deleteConversation(Long requestId, Long otherUserId) {
         User currentUser = getCurrentUser();
-        // Get only non-deleted messages
-        List<Chat> messages = chatRepository.findNonDeletedMessagesByRequestIdAndUserId(requestId, currentUser.getId());
-        
-        // Mark all messages as deleted for this user
-        for (Chat message : messages) {
-            message.setIsDeleted(true);
-        }
+        List<Chat> messages = otherUserId != null
+            ? chatRepository.findMessagesBetweenUsers(requestId, currentUser.getId(), otherUserId)
+            : chatRepository.findNonDeletedMessagesByRequestIdAndUserId(requestId, currentUser.getId());
+        for (Chat m : messages) m.setIsDeleted(true);
         chatRepository.saveAll(messages);
     }
     
     public List<com.kindcircle.dto.ConversationResponse> getArchivedConversations(Long userId) {
-        // Get archived conversation request IDs
-        List<Long> requestIds = chatRepository.findArchivedConversationRequestIdsByUserId(userId);
-        
-        return requestIds.stream()
-            .map(requestId -> {
+        List<Object[]> pairs = chatRepository.findArchivedConversations(userId);
+        return pairs.stream()
+            .map(p -> {
+                Long requestId = (Long) p[0];
+                Long otherUserId = (Long) p[1];
                 BloodRequest request = bloodRequestRepository.findById(requestId).orElse(null);
                 if (request == null) return null;
-                
-                // Get last message (non-deleted for this user, even if archived)
-                List<Chat> lastMessages = chatRepository.findLastMessageByRequestIdAndUserId(requestId, userId);
-                Chat lastMessage = lastMessages.isEmpty() ? null : lastMessages.get(0);
-                
-                // Unread count should be 0 for archived conversations
-                Long unreadCount = 0L;
-                
-                com.kindcircle.dto.ConversationResponse response = 
-                    com.kindcircle.dto.ConversationResponse.fromRequestAndLastMessage(
-                        request, lastMessage, unreadCount, userId);
-                
-                // Get donation info if exists
-                bloodDonationRepository.findByRequestId(requestId).ifPresent(donation -> {
-                    response.setDonationInfo(com.kindcircle.dto.ConversationResponse.DonationInfo.fromDonation(donation));
-                });
-                
-                return response;
+                List<Chat> last = chatRepository.findLastMessageBetweenUsers(requestId, userId, otherUserId);
+                Chat lastMessage = last.isEmpty() ? null : last.get(0);
+                com.kindcircle.dto.ConversationResponse r =
+                    com.kindcircle.dto.ConversationResponse.fromRequestAndLastMessage(request, lastMessage, 0L, userId);
+                r.setOtherUser(com.kindcircle.dto.ConversationResponse.UserInfo.fromUser(userService.findById(otherUserId)));
+                bloodDonationRepository.findByRequestId(requestId).ifPresent(d ->
+                    r.setDonationInfo(com.kindcircle.dto.ConversationResponse.DonationInfo.fromDonation(d)));
+                return r;
             })
-            .filter(conv -> conv != null)
+            .filter(c -> c != null)
             .sorted((a, b) -> b.getLastActivityAt().compareTo(a.getLastActivityAt()))
             .collect(java.util.stream.Collectors.toList());
     }

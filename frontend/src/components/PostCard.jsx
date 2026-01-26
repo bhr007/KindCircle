@@ -4,6 +4,7 @@ import api from '../services/api'
 import { toast } from 'react-toastify'
 import { useAuth } from '../context/AuthContext'
 import CommentSection from './CommentSection'
+import { FaTrash, FaThumbsUp, FaThumbsDown, FaComment } from 'react-icons/fa'
 import './PostCard.css'
 
 const PostCard = ({ post, onUpdate, autoOpenComments = false }) => {
@@ -27,7 +28,11 @@ const PostCard = ({ post, onUpdate, autoOpenComments = false }) => {
     }
   }
 
-  const handleVote = async (voteType) => {
+  const handleVote = async (e, voteType) => {
+    if (e) {
+      e.preventDefault()
+      e.stopPropagation()
+    }
     if (voting) return
     
     setVoting(true)
@@ -101,7 +106,7 @@ const PostCard = ({ post, onUpdate, autoOpenComments = false }) => {
               className="btn-delete-post"
               title="Delete post"
             >
-              {deleting ? '...' : '🗑️'}
+              {deleting ? '...' : <FaTrash />}
             </button>
           )}
         </div>
@@ -185,24 +190,26 @@ const PostCard = ({ post, onUpdate, autoOpenComments = false }) => {
       <div className="post-footer">
         <div className="post-actions">
           <button 
-            onClick={() => handleVote('UPVOTE')}
+            type="button"
+            onClick={(e) => handleVote(e, 'UPVOTE')}
             disabled={voting}
-            className="vote-btn upvote"
+            className={`vote-btn upvote ${post.userVote === 'UPVOTE' ? 'active' : ''}`}
           >
-            👍 {post.upvotes || 0}
+            <FaThumbsUp /> {post.upvotes || 0}
           </button>
           <button 
-            onClick={() => handleVote('DOWNVOTE')}
+            type="button"
+            onClick={(e) => handleVote(e, 'DOWNVOTE')}
             disabled={voting}
-            className="vote-btn downvote"
+            className={`vote-btn downvote ${post.userVote === 'DOWNVOTE' ? 'active' : ''}`}
           >
-            👎 {post.downvotes || 0}
+            <FaThumbsDown /> {post.downvotes || 0}
           </button>
           <button 
             className="comment-btn"
             onClick={() => setShowComments(!showComments)}
           >
-            💬 {post.commentsCount || 0}
+            <FaComment /> {post.commentsCount || 0}
           </button>
         </div>
         <div className="post-date">

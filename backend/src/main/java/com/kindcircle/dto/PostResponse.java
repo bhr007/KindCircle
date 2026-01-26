@@ -23,6 +23,7 @@ public class PostResponse {
     private Long upvotes;
     private Long downvotes;
     private Long commentsCount;
+    private String userVote; // "UPVOTE", "DOWNVOTE", or null
     
     // Getters and Setters
     public Long getId() { return id; }
@@ -66,6 +67,9 @@ public class PostResponse {
     
     public Long getCommentsCount() { return commentsCount; }
     public void setCommentsCount(Long commentsCount) { this.commentsCount = commentsCount; }
+    
+    public String getUserVote() { return userVote; }
+    public void setUserVote(String userVote) { this.userVote = userVote; }
     
     public static class UserInfo {
         private Long id;
@@ -130,7 +134,7 @@ public class PostResponse {
         }
     }
     
-    public static PostResponse fromPost(SocialWorkPost post, Long upvotes, Long downvotes, Long commentsCount) {
+    public static PostResponse fromPost(SocialWorkPost post, Long upvotes, Long downvotes, Long commentsCount, String userVote) {
         PostResponse response = new PostResponse();
         response.setId(post.getId());
         response.setUser(UserInfo.fromUser(post.getUser()));
@@ -159,6 +163,7 @@ public class PostResponse {
         response.setUpvotes(upvotes);
         response.setDownvotes(downvotes);
         response.setCommentsCount(commentsCount);
+        response.setUserVote(userVote);
         
         return response;
     }

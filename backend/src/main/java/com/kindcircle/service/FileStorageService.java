@@ -16,6 +16,7 @@ public class FileStorageService {
     private static final String UPLOAD_DIR = "uploads";
     private static final String POSTS_DIR = "posts";
     private static final String PROFILE_PICTURES_DIR = "profile-pictures";
+    private static final String CAMPAIGN_PROOFS_DIR = "campaign-proofs";
     
     /**
      * Save a file to the uploads directory
@@ -62,6 +63,13 @@ public class FileStorageService {
      */
     public String saveProfilePicture(MultipartFile file) throws IOException {
         return saveFile(file, PROFILE_PICTURES_DIR);
+    }
+
+    /**
+     * Save a campaign proof (photo/video)
+     */
+    public String saveCampaignProof(MultipartFile file) throws IOException {
+        return saveFile(file, CAMPAIGN_PROOFS_DIR);
     }
     
     /**

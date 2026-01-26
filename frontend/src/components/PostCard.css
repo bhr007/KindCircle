@@ -155,9 +155,22 @@
   gap: 5px;
 }
 
+.vote-btn svg,
+.comment-btn svg {
+  font-size: 14px;
+}
+
 .vote-btn:hover {
   background: #f5f5f5;
   border-color: #dc3545;
+  color: #dc3545;
+}
+
+.vote-btn.active {
+  border-color: #dc3545;
+}
+
+.vote-btn.active svg {
   color: #dc3545;
 }
 

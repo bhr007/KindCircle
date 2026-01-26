@@ -93,12 +93,14 @@ public class EmergencyController {
     @PostMapping("/{requestId}/chat")
     public ResponseEntity<Chat> sendMessage(
             @PathVariable Long requestId,
-            @RequestBody Map<String, String> request) {
-        String message = request.get("message");
-        if (message == null || message.trim().isEmpty()) {
+            @RequestBody Map<String, Object> body) {
+        String message = body.get("message") != null ? body.get("message").toString() : null;
+        Long receiverId = null;
+        if (body.containsKey("receiverId") && body.get("receiverId") != null)
+            receiverId = Long.valueOf(body.get("receiverId").toString());
+        if (message == null || message.trim().isEmpty())
             throw new RuntimeException("Message cannot be empty");
-        }
-        return ResponseEntity.ok(bloodRequestService.sendMessage(requestId, message));
+        return ResponseEntity.ok(bloodRequestService.sendMessage(requestId, message, receiverId));
     }
     
     @PostMapping("/{requestId}/location")
@@ -150,19 +152,23 @@ public class EmergencyController {
     }
     
     @GetMapping("/inbox/{requestId}/messages")
-    public ResponseEntity<List<com.kindcircle.model.Chat>> getConversationMessages(@PathVariable Long requestId) {
-        org.springframework.security.core.Authentication auth = 
+    public ResponseEntity<List<com.kindcircle.model.Chat>> getConversationMessages(
+            @PathVariable Long requestId,
+            @RequestParam(required = false) Long otherUserId) {
+        org.springframework.security.core.Authentication auth =
             org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication();
         com.kindcircle.model.User user = userService.findByUsername(auth.getName());
-        return ResponseEntity.ok(bloodRequestService.getChatMessagesForUser(requestId, user.getId()));
+        return ResponseEntity.ok(bloodRequestService.getChatMessagesForUser(requestId, user.getId(), otherUserId));
     }
     
     @PostMapping("/inbox/{requestId}/mark-read")
-    public ResponseEntity<Map<String, String>> markMessagesAsRead(@PathVariable Long requestId) {
-        org.springframework.security.core.Authentication auth = 
+    public ResponseEntity<Map<String, String>> markMessagesAsRead(
+            @PathVariable Long requestId,
+            @RequestParam(required = false) Long otherUserId) {
+        org.springframework.security.core.Authentication auth =
             org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication();
         com.kindcircle.model.User user = userService.findByUsername(auth.getName());
-        bloodRequestService.markMessagesAsRead(requestId, user.getId());
+        bloodRequestService.markMessagesAsRead(requestId, user.getId(), otherUserId);
         return ResponseEntity.ok(Map.of("message", "Messages marked as read"));
     }
     
@@ -173,6 +179,12 @@ public class EmergencyController {
             .map(com.kindcircle.dto.ConversationResponse.UserInfo::fromUser)
             .collect(Collectors.toList());
         return ResponseEntity.ok(responderInfos);
+    }
+    
+    @PostMapping("/{requestId}/mark-managed")
+    public ResponseEntity<Map<String, String>> markAsManaged(@PathVariable Long requestId) {
+        bloodRequestService.markAsManaged(requestId);
+        return ResponseEntity.ok(Map.of("message", "Blood request marked as managed"));
     }
     
     @DeleteMapping("/{requestId}")
@@ -188,14 +200,18 @@ public class EmergencyController {
     }
     
     @PostMapping("/inbox/{requestId}/archive")
-    public ResponseEntity<Map<String, String>> archiveConversation(@PathVariable Long requestId) {
-        bloodRequestService.archiveConversation(requestId);
+    public ResponseEntity<Map<String, String>> archiveConversation(
+            @PathVariable Long requestId,
+            @RequestParam(required = false) Long otherUserId) {
+        bloodRequestService.archiveConversation(requestId, otherUserId);
         return ResponseEntity.ok(Map.of("message", "Conversation archived successfully"));
     }
     
     @DeleteMapping("/inbox/{requestId}/conversation")
-    public ResponseEntity<Map<String, String>> deleteConversation(@PathVariable Long requestId) {
-        bloodRequestService.deleteConversation(requestId);
+    public ResponseEntity<Map<String, String>> deleteConversation(
+            @PathVariable Long requestId,
+            @RequestParam(required = false) Long otherUserId) {
+        bloodRequestService.deleteConversation(requestId, otherUserId);
         return ResponseEntity.ok(Map.of("message", "Conversation deleted successfully"));
     }
     
